@@ -65,8 +65,99 @@ CREATE TABLE IF NOT EXISTS attendances (
     picked_up_by VARCHAR(64)  NOT NULL DEFAULT '',
     checked_at   DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     remark       VARCHAR(255) NOT NULL DEFAULT '',
+    billed       TINYINT(1)   NOT NULL DEFAULT 0,
     PRIMARY KEY (id),
     UNIQUE KEY uk_attend (student_id, attend_date, meal),
     KEY idx_attend_date (attend_date),
     CONSTRAINT fk_attend_student FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS system_configs (
+    id          BIGINT       NOT NULL AUTO_INCREMENT,
+    config_key  VARCHAR(64)  NOT NULL,
+    config_value VARCHAR(255) NOT NULL DEFAULT '',
+    description VARCHAR(255) NOT NULL DEFAULT '',
+    created_at  DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    updated_at  DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_config_key (config_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS meal_accounts (
+    id              BIGINT       NOT NULL AUTO_INCREMENT,
+    student_id      BIGINT       NOT NULL,
+    balance_cents   INT          NOT NULL DEFAULT 0,
+    frozen_cents    INT          NOT NULL DEFAULT 0,
+    created_at      DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    updated_at      DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_account_student (student_id),
+    CONSTRAINT fk_account_student FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS meal_transactions (
+    id                BIGINT       NOT NULL AUTO_INCREMENT,
+    account_id        BIGINT       NOT NULL,
+    student_id        BIGINT       NOT NULL,
+    transaction_type  VARCHAR(32)  NOT NULL,
+    amount_cents      INT          NOT NULL,
+    balance_after_cents INT        NOT NULL,
+    related_type      VARCHAR(32)  NOT NULL DEFAULT '',
+    related_id        BIGINT       NULL,
+    remark            VARCHAR(255) NOT NULL DEFAULT '',
+    operator          VARCHAR(64)  NOT NULL DEFAULT '',
+    created_at        DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (id),
+    KEY idx_txn_account (account_id),
+    KEY idx_txn_student (student_id),
+    KEY idx_txn_created (created_at),
+    KEY idx_txn_related (related_type, related_id),
+    CONSTRAINT fk_txn_account FOREIGN KEY (account_id) REFERENCES meal_accounts (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS meal_adjustments (
+    id              BIGINT       NOT NULL AUTO_INCREMENT,
+    enrollment_id   BIGINT       NOT NULL,
+    student_id      BIGINT       NOT NULL,
+    adjust_date     DATE         NOT NULL,
+    meal            VARCHAR(16)  NOT NULL,
+    adjust_type     VARCHAR(32)  NOT NULL,
+    unit_price_cents INT         NOT NULL,
+    quantity        INT          NOT NULL DEFAULT 1,
+    amount_cents    INT          NOT NULL,
+    attendance_id   BIGINT       NULL,
+    transaction_id  BIGINT       NULL,
+    remark          VARCHAR(255) NOT NULL DEFAULT '',
+    created_at      DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_adjust (enrollment_id, adjust_date, meal, adjust_type),
+    KEY idx_adjust_student (student_id),
+    KEY idx_adjust_date (adjust_date),
+    KEY idx_adjust_attendance (attendance_id),
+    CONSTRAINT fk_adjust_enrollment FOREIGN KEY (enrollment_id) REFERENCES enrollments (id),
+    CONSTRAINT fk_adjust_student FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS bills (
+    id                    BIGINT       NOT NULL AUTO_INCREMENT,
+    student_id            BIGINT       NOT NULL,
+    enrollment_id         BIGINT       NOT NULL,
+    bill_month            CHAR(7)      NOT NULL,
+    planned_amount_cents  INT          NOT NULL DEFAULT 0,
+    refund_amount_cents   INT          NOT NULL DEFAULT 0,
+    supplement_amount_cents INT        NOT NULL DEFAULT 0,
+    actual_amount_cents   INT          NOT NULL DEFAULT 0,
+    paid_amount_cents     INT          NOT NULL DEFAULT 0,
+    balance_cents         INT          NOT NULL DEFAULT 0,
+    status                VARCHAR(16)  NOT NULL DEFAULT 'DRAFT',
+    remark                VARCHAR(255) NOT NULL DEFAULT '',
+    generated_at          DATETIME(3)  NULL,
+    finalized_at          DATETIME(3)  NULL,
+    created_at            DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_bill (enrollment_id, bill_month),
+    KEY idx_bill_student (student_id),
+    KEY idx_bill_month (bill_month),
+    CONSTRAINT fk_bill_student FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE CASCADE,
+    CONSTRAINT fk_bill_enrollment FOREIGN KEY (enrollment_id) REFERENCES enrollments (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

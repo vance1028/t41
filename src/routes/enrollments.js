@@ -61,7 +61,7 @@ router.post('/', wrap(async (req, res) => {
   res.status(201).json({ data: e });
 }));
 
-// 标记缴费
+// 标记缴费，同时将餐费充值到学生餐费账户
 router.post('/:id/pay', wrap(async (req, res) => {
   const id = toPositiveInt(req.params.id);
   if (id === null) return sendError(res, 400, '无效的报名 ID');
@@ -69,7 +69,25 @@ router.post('/:id/pay', wrap(async (req, res) => {
   if (!e) return sendError(res, 404, '报名记录不存在');
   if (e.paid) return sendError(res, 409, '该报名已缴费');
   const updated = await store.markEnrollmentPaid(id);
+  await store.rechargeAccount(
+    e.studentId,
+    e.amountCents,
+    'ENROLLMENT',
+    e.id,
+    `报名缴费: ${e.startDate} ~ ${e.endDate}`,
+    'system',
+  );
   res.json({ data: updated });
+}));
+
+// 查询报名的退补餐明细
+router.get('/:id/adjustments', wrap(async (req, res) => {
+  const id = toPositiveInt(req.params.id);
+  if (id === null) return sendError(res, 400, '无效的报名 ID');
+  const e = await store.getEnrollment(id);
+  if (!e) return sendError(res, 404, '报名记录不存在');
+  const list = await store.listAdjustments({ enrollmentId: id });
+  res.json({ data: list, total: list.length });
 }));
 
 module.exports = router;

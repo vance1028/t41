@@ -8,7 +8,7 @@ const router = express.Router();
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
 const VALID_MEAL = ['BREAKFAST', 'LUNCH', 'DINNER'];
-const VALID_STATUS = ['PRESENT', 'ABSENT', 'LEAVE'];
+const VALID_STATUS = ['PRESENT', 'ABSENT', 'LEAVE', 'EXTRA'];
 
 router.get('/', wrap(async (req, res) => {
   const filters = {};
@@ -25,7 +25,7 @@ router.get('/', wrap(async (req, res) => {
   res.json({ data: list, total: list.length });
 }));
 
-// 签到/考勤登记：同一学生同一天同一餐只能登记一次
+// 签到/考勤登记：同一学生同一天同一餐只能登记一次，登记后自动计费
 router.post('/', wrap(async (req, res) => {
   const b = req.body || {};
   const sid = toPositiveInt(b.studentId);
@@ -51,7 +51,23 @@ router.post('/', wrap(async (req, res) => {
     pickedUpBy: b.pickedUpBy,
     remark: b.remark,
   });
-  res.status(201).json({ data: a });
+
+  const billingResult = await store.processAttendanceBilling(a.id);
+
+  res.status(201).json({ data: a, billing: billingResult });
+}));
+
+// 重新触发某条出勤记录的计费
+router.post('/:id/bill', wrap(async (req, res) => {
+  const id = toPositiveInt(req.params.id);
+  if (id === null) return sendError(res, 400, '无效的出勤 ID');
+  const [rows] = await require('../db').pool.query('SELECT id FROM attendances WHERE id = ?', [id]);
+  if (!rows.length) return sendError(res, 404, '出勤记录不存在');
+  const result = await store.processAttendanceBilling(id);
+  if (!result.success) {
+    return sendError(res, 400, result.error || '计费失败');
+  }
+  res.json({ data: result });
 }));
 
 module.exports = router;

@@ -8,6 +8,9 @@ const plansRouter = require('./routes/plans');
 const enrollmentsRouter = require('./routes/enrollments');
 const menusRouter = require('./routes/menus');
 const attendancesRouter = require('./routes/attendances');
+const accountsRouter = require('./routes/accounts');
+const billsRouter = require('./routes/bills');
+const configsRouter = require('./routes/configs');
 const { sendError } = require('./utils/http');
 
 /**
@@ -31,6 +34,9 @@ function createApp() {
   app.use('/api/enrollments', enrollmentsRouter);
   app.use('/api/menus', menusRouter);
   app.use('/api/attendances', attendancesRouter);
+  app.use('/api/accounts', accountsRouter);
+  app.use('/api/bills', billsRouter);
+  app.use('/api/configs', configsRouter);
 
   app.use((req, res) => sendError(res, 404, '接口不存在'));
 
@@ -39,7 +45,7 @@ function createApp() {
     if (err.type === 'entity.parse.failed') {
       return sendError(res, 400, '请求体不是合法的 JSON');
     }
-    // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-unused-vars
     console.error(err);
     return sendError(res, 500, '服务器内部错误');
   });
