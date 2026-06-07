@@ -612,12 +612,12 @@ async function processAttendanceBilling(attendanceId) {
       return { success: false, error: '未找到生效中的报名' };
     }
 
-    const [planRows] = await conn.query('SELECT * FROM meal_plans WHERE id = ?', [enrollment.plan_id]);
+    const [planRows] = await conn.query('SELECT * FROM meal_plans WHERE id = ?', [enrollment.planId]);
     if (!planRows.length) {
       await conn.rollback();
       return { success: false, error: '套餐不存在' };
     }
-    const plan = planRows[0];
+    const plan = mapPlan(planRows[0]);
 
     const prices = billing.calculateMealUnitPrices(enrollment, plan);
     const unitPrice = billing.getMealUnitPrice(prices, att.attend_date, att.meal);
